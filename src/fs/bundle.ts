@@ -1,7 +1,8 @@
-import { stat as getStat, Stats, createReadStream } from 'fs'
+import { stat as getStat, Stats, createReadStream, promises as fsP } from 'fs'
 import { relative } from 'path'
 import { Readable } from 'stream'
 import MultiStream = require('multistream')
+import { minify } from 'terser'
 
 const stat = (file: string): Promise<Stats> => {
   return new Promise((resolve, reject) => {
@@ -48,8 +49,25 @@ export class Bundle {
     if (content !== undefined) {
       length = Buffer.byteLength(content)
     } else {
-      const stats = await stat(absoluteFileName)
-      length = stats.size
+      // only run terser on javascript files
+      if (process.env.NEXE_DO_MINIFY === 'true' && absoluteFileName.endsWith('.js')) {
+        let script = (await fsP.readFile(absoluteFileName)).toString()
+        console.log('minifying resource ' + absoluteFileName)
+        let result = minify(script, {
+          ecma: 2016,
+        })
+        if (result.error) {
+          console.error('====================================================')
+          console.error('TERSER ERROR WHILE MINIFYING ' + absoluteFileName)
+          console.error(result.error)
+          console.error('====================================================')
+        }
+        content = result.code as string
+        length = Buffer.byteLength(content)
+      } else {
+        const stats = await stat(absoluteFileName)
+        length = stats.size
+      }
     }
 
     const start = this.blobSize
