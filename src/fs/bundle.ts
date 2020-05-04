@@ -49,25 +49,40 @@ export class Bundle {
     if (content !== undefined) {
       length = Buffer.byteLength(content)
     } else {
-      // only run terser on javascript files
-      if (process.env.NEXE_DO_MINIFY === 'true' && absoluteFileName.endsWith('.js')) {
-        let script = (await fsP.readFile(absoluteFileName)).toString()
-        console.log('minifying resource ' + absoluteFileName)
-        let result = minify(script, {
-          ecma: 2016,
-        })
-        if (result.error) {
-          console.error('====================================================')
-          console.error('TERSER ERROR WHILE MINIFYING ' + absoluteFileName)
-          console.error(result.error)
-          console.error('====================================================')
+      if (process.env.NEXE_DO_MINIFY === 'true') {
+        // run terser on javascript files
+        if (absoluteFileName.endsWith('.js')) {
+          let file = (await fsP.readFile(absoluteFileName)).toString()
+          console.log('minifying javascript ' + absoluteFileName)
+          let result = minify(file, {
+            ecma: 2016,
+          })
+          if (result.error) {
+            console.error('====================================================')
+            console.error('TERSER ERROR WHILE MINIFYING ' + absoluteFileName)
+            console.error(result.error)
+            console.error('====================================================')
+          } else content = result.code
+        } else if (absoluteFileName.endsWith('.json')) {
+          let file = (await fsP.readFile(absoluteFileName)).toString()
+          console.log('minifying json ' + absoluteFileName)
+          try {
+            content = JSON.stringify(JSON.parse(file))
+          } catch (error) {
+            console.error('====================================================')
+            console.error('JSON PARSE ERROR WHILE MINIFYING ' + absoluteFileName)
+            console.error(error)
+            console.error('====================================================')
+          }
         }
-        content = result.code as string
-        length = Buffer.byteLength(content)
-      } else {
-        const stats = await stat(absoluteFileName)
-        length = stats.size
       }
+    }
+
+    if (content === undefined) {
+      const stats = await stat(absoluteFileName)
+      length = stats.size
+    } else {
+      length = Buffer.byteLength(content)
     }
 
     const start = this.blobSize
