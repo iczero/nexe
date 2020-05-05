@@ -56,6 +56,7 @@ export class Bundle {
           console.log('minifying javascript ' + absoluteFileName)
           let result = minify(file, {
             ecma: 2016,
+            output: { comments: false }
           })
           if (result.error) {
             console.error('====================================================')
